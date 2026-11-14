@@ -83,7 +83,7 @@ class TemplateTests(unittest.TestCase):
             subprocess.run(["tar", "-cjf", str(app / "webui.bz2"), "-C", str(root / "web"), "."], check=True)
             fake_bin = root / "bin"
             fake_bin.mkdir()
-            for name, script in (("systemctl", "exit 0"), ("id", "exit 1")):
+            for name, script in (("systemctl", "exit 0"), ("id", "exit 1"), ("getent", "echo test-app:x:823:"), ("groupadd", "exit 99")):
                 path = fake_bin / name
                 path.write_text("#!/bin/sh\n" + script + "\n")
                 path.chmod(0o755)
