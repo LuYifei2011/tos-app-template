@@ -46,7 +46,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(metadata["path"], "/different-app/")
                 self.assertEqual(metadata["user"], "different-app")
                 self.assertEqual(metadata["platform"], platform)
-                self.assertEqual(metadata["low_version"], "7.0")
+                self.assertEqual(metadata["low_version"], "TOS7.0")
             config["version"] = "2.3.4"
             (target / "app.json").write_text(json.dumps(config))
             sync(target)
