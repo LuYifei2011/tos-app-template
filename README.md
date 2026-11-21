@@ -35,6 +35,8 @@ npm run dev:server
 
 ## 验证和打包
 
+构建和校验 Deb 需要安装 dpkg 工具，使 `dpkg-deb` 可在命令行调用。
+
 ```sh
 npm test
 go vet ./...

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Verify the built deb against the manifest, frontend and runtime contract."""
 import argparse
-import gzip
 import hashlib
 import io
 import json
 from pathlib import Path
 import re
 import struct
+import subprocess
 import tarfile
 from metadata import ROOT, check, language_file, tos_config
 
@@ -15,21 +15,7 @@ from metadata import ROOT, check, language_file, tos_config
 def verify(package):
     config = check()
     app_id = config["id"]
-    data = package.read_bytes()
-    assert data[:8] == b"!<arch>\n", "not a deb archive"
-    members, pos = {}, 8
-    while pos < len(data):
-        header = data[pos:pos+60]
-        assert len(header) == 60 and header[-2:] == b"`\n", "invalid ar header"
-        size = int(header[48:58])
-        name = header[:16].decode().strip().rstrip("/")
-        assert name not in members and pos + 60 + size <= len(data), "duplicate or truncated ar member"
-        members[name] = data[pos+60:pos+60+size]
-        pos += 60 + size + size % 2
-    assert members["debian-binary"] == b"2.0\n"
-    for name in ("control.tar.gz", "data.tar.gz"):
-        assert gzip.decompress(members[name])[257:265] == b"ustar  \x00", "GNU tar required"
-    with tarfile.open(fileobj=io.BytesIO(members["control.tar.gz"])) as control:
+    with tarfile.open(fileobj=io.BytesIO(subprocess.check_output(["dpkg-deb", "--ctrl-tarfile", package]))) as control:
         fields = control.extractfile("./control").read().decode()
         arch = re.search(r"^Architecture: (amd64|arm64)$", fields, re.M)[1]
         assert f"Package: {app_id}\n" in fields and f"Version: {config['version']}\n" in fields
@@ -39,10 +25,10 @@ def verify(package):
             assert control.extractfile("./" + name).read().decode() == expected
             assert expected.startswith("#!/bin/bash\n") and "\r" not in expected
             assert control.getmember("./" + name).mode == 0o755
-    with tarfile.open(fileobj=io.BytesIO(members["data.tar.gz"])) as tar:
+    with tarfile.open(fileobj=io.BytesIO(subprocess.check_output(["dpkg-deb", "--fsys-tarfile", package]))) as tar:
         base = f"./usr/local/{app_id}/"
         for member in tar:
-            assert member.name in ("./usr", "./usr/local", base.rstrip("/")) or member.name.startswith(base)
+            assert member.name in (".", "./usr", "./usr/local", base.rstrip("/")) or member.name.startswith(base)
             assert ".." not in Path(member.name).parts and not member.issym() and not member.islnk()
         get = lambda name: tar.extractfile(base + name).read()
         assert json.loads(get("config.ini")) == tos_config(config, arch)

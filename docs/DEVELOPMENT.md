@@ -33,6 +33,10 @@ Go module 名 `tos-app-template` 用于项目内部导入，与 TOS 应用 ID �
 
 ## 数据与安装
 
+Deb 由 `dpkg-deb --root-owner-group -Zxz --build` 生成。
+
+提交衍生应用时，在应用帮助中链接该应用的隐私政策，说明实际数据、保留期限、安全措施、共享对象及查阅、更正、删除渠道。随送审材料列出后端的用途、实际源码仓库与发布标签、构建脚本和包内 `build-info.json` 中的二进制摘要。
+
 打包遵循 [TOS Deb 开发指南 §8.4 / §8.12 / §8.14](https://github.com/terramaster-tos/tos-app-pkg-tools/blob/main/TOS%207%20Application%20Development%20Guide/08_Deb_Development.md)：`low_version` 必填，按 [官方 issue #10 回复](https://github.com/terramaster-tos/tos-app-pkg-tools/issues/10#issuecomment-6876407532) 使用 `TOS7.0`，生命周期脚本使用 `#!/bin/bash` 和 0755 权限，服务单元保存在应用的 `init.d` 内。打包时统一脚本、语言和服务配置的 LF 换行。开发脚本 `scripts/dev.sh` 在本机运行。
 
 模板运行时只预留 `/usr/local/<id>/data`，示例请求不写文件。目录由应用账号持有，权限 0700。新增数据应存放在此处，并自行实现原子写入、大小上限与资源权限隔离。

@@ -2,7 +2,6 @@
 """Build a self-contained TOS deb from a validated application manifest."""
 import argparse
 import hashlib
-import io
 import json
 from pathlib import Path
 import shutil
@@ -10,22 +9,6 @@ import subprocess
 import tarfile
 from metadata import ROOT, check, language_file, tos_config
 from toolchain import release_go
-
-
-def archive(directory, excludes=()):
-    data = io.BytesIO()
-    # The official TOS package checker requires GNU tar for the deb members.
-    with tarfile.open(fileobj=data, mode="w:gz", format=tarfile.GNU_FORMAT) as tar:
-        for item in sorted(directory.rglob("*")):
-            relative = item.relative_to(directory)
-            if relative.parts[0] in excludes:
-                continue
-            info = tar.gettarinfo(str(item), "./" + str(relative))
-            info.uid = info.gid = 0
-            info.uname = info.gname = "root"
-            with item.open("rb") if item.is_file() else io.BytesIO() as stream:
-                tar.addfile(info, stream if item.is_file() else None)
-    return data.getvalue()
 
 
 def render(source, target, app_id):
@@ -96,13 +79,7 @@ Description: {config['description']['en-US']}
         if path.is_file() and (path.parent == control or path.suffix in {".ini", ".lang", ".service", ".socket"}):
             path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n"))
     output = ROOT / "build" / f"{app_id}_{version}_{arch}.deb"
-    with output.open("wb") as stream:
-        stream.write(b"!<arch>\n")
-        for name, data in (("debian-binary", b"2.0\n"), ("control.tar.gz", archive(control)), ("data.tar.gz", archive(stage, ("DEBIAN",)))):
-            stream.write(f"{name+'/':<16}{0:<12}{0:<6}{0:<6}{'100644':<8}{len(data):<10}`\n".encode("ascii"))
-            stream.write(data)
-            if len(data) % 2:
-                stream.write(b"\n")
+    subprocess.run(["dpkg-deb", "--root-owner-group", "-Zxz", "--build", stage, output], check=True)
     print(output)
 
 
